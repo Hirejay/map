@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Map with Input Route</title>
+  <title>Street Route with OpenRouteService</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -12,47 +12,57 @@
   </style>
 </head>
 <body>
-  <h2>Draw Route Between Coordinates</h2>
+  <h2>Street Route Between Coordinates</h2>
   <div class="input-group">
     <label>Start Latitude: <input type="number" id="startLat" value="18.409062" step="any"></label>
     <label>Start Longitude: <input type="number" id="startLng" value="76.546048" step="any"></label>
     <label>End Latitude: <input type="number" id="endLat" value="18.409039" step="any"></label>
     <label>End Longitude: <input type="number" id="endLng" value="76.640831" step="any"></label>
-    <button onclick="drawRoute()">Show Route</button>
+    <button onclick="drawRoute()">Get Street Route</button>
   </div>
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    let map = L.map('map').setView([18.409062, 76.546048], 13);
+    const apiKey = '5b3ce3597851110001cf62481ad39674ab4346cd826fcf11dfc9c1ed'; // Replace with your OpenRouteService API key
 
+    let map = L.map('map').setView([18.409062, 76.546048], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    let routeLine, startMarker, endMarker;
+    let routeLayer;
 
-    function drawRoute() {
+    async function drawRoute() {
       const startLat = parseFloat(document.getElementById('startLat').value);
       const startLng = parseFloat(document.getElementById('startLng').value);
       const endLat = parseFloat(document.getElementById('endLat').value);
       const endLng = parseFloat(document.getElementById('endLng').value);
 
-      const start = [startLat, startLng];
-      const end = [endLat, endLng];
+      const body = {
+        coordinates: [[startLng, startLat], [endLng, endLat]]
+      };
 
-      if (routeLine) map.removeLayer(routeLine);
-      if (startMarker) map.removeLayer(startMarker);
-      if (endMarker) map.removeLayer(endMarker);
+      const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json, application/geo+json',
+          'Authorization': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
 
-      startMarker = L.marker(start).addTo(map).bindPopup('Start');
-      endMarker = L.marker(end).addTo(map).bindPopup('End');
+      const data = await response.json();
 
-      routeLine = L.polyline([start, end], { color: 'blue', weight: 4 }).addTo(map);
-      map.fitBounds(routeLine.getBounds());
+      if (routeLayer) map.removeLayer(routeLayer);
+      routeLayer = L.geoJSON(data, {
+        style: { color: 'blue', weight: 5 }
+      }).addTo(map);
+
+      const bounds = routeLayer.getBounds();
+      map.fitBounds(bounds);
     }
-
-    drawRoute(); // initial load
   </script>
 </body>
 </html>
